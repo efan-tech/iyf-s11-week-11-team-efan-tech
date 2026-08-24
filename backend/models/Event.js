@@ -1,48 +1,107 @@
 const mongoose = require('mongoose');
 
-const rsvpSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  name: { type: String, required: true },
-  status: {
-    type: String,
-    enum: ['going', 'maybe', 'not-going'],
-    required: true
+const commentSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    parentComment: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null, // for nested replies
+    },
   },
-  respondedAt: { type: Date, default: Date.now }
-});
+  { timestamps: true }
+);
 
-const eventSchema = new mongoose.Schema({
-  title: { type: String, required: true, trim: true },
-  description: { type: String, required: true },
-  category: {
-    type: String,
-    required: true,
-    enum: [
-      'Arts',
-      'Catholic / Faith',
-      'Praise & Worship',
-      'Tech & Innovation',
-      'Sports',
-      'Hackathons',
-      'Cultural',
-      'General'
-    ]
+const rsvpSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['going', 'maybe', 'not-going'],
+      required: true,
+    },
   },
-  location: { type: String, default: 'Campus' },
-  date: { type: String, required: true },
-  image: { type: String, default: '' },
-  author: {
-    name: { type: String, required: true },
-    handle: { type: String },
-    avatar: { type: String }
+  { timestamps: true }
+);
+
+const eventSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+    category: {
+      type: String,
+      required: true,
+      enum: [
+        'Arts',
+        'Praise & Worship',
+        'Tech & Innovation',
+        'Sports',
+        'Hackathons',
+        'Cultural',
+        'General',
+        'Catholic / Faith',
+      ],
+    },
+    location: {
+      type: String,
+      default: 'Campus',
+    },
+    date: {
+      type: String, // keep as string for simplicity (or change to Date later)
+      required: true,
+    },
+    image: {
+      type: String,
+      default: '',
+    },
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    shares: {
+      type: Number,
+      default: 0,
+    },
+    rsvps: [rsvpSchema],
+    comments: [commentSchema],
+    joinedCount: {
+      type: Number,
+      default: 0,
+    },
   },
-  rsvps: [rsvpSchema],
-  joinedCount: { type: Number, default: 0 },
-  comments: [{
-    user: String,
-    text: String,
-    createdAt: { type: Date, default: Date.now }
-  }]
-}, { timestamps: true });
+  { timestamps: true }
+);
+
+// Auto-update joinedCount before save
+eventSchema.pre('save', function (next) {
+  this.joinedCount = this.rsvps.filter((r) => r.status === 'going').length;
+  next();
+});
 
 module.exports = mongoose.model('Event', eventSchema);
