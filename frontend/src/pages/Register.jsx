@@ -1,211 +1,159 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-// NOTE: API import intentionally unused for the demo (bypass) flow.
-// Re-enable it below when wiring the real backend back in.
-// import API from '../api';
+import { registerUser } from '../api';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    displayName: '',
   });
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const passwordsMatch = formData.password === formData.confirmPassword;
-
-  // Bypass flow: typing anything and submitting takes the user straight to
-  // /dashboard with no backend call. Mirrors Login.jsx.
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!passwordsMatch) return;
-    localStorage.setItem('token', 'quantum-operator-session');
-    navigate('/dashboard');
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { confirmPassword, ...payload } = formData;
+      const res = await registerUser(payload);
+      login(res.data.token, res.data.user);
+      toast.success('Account created successfully!');
+      navigate('/dashboard');
+    } catch (err) {
+      const message = err.response?.data?.message || 'Registration failed';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.badge}>QUANTUM LOGIC VERIFICATION</div>
-        <h2 style={styles.title}>System Access Request</h2>
-        <p style={styles.subtitle}>Create your credentials to access the Quantum Logic verification dashboard.</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#050b14] px-4 py-10">
+      <div className="w-full max-w-md bg-[#0f172a] border border-slate-800 rounded-2xl p-8 shadow-2xl">
+        <div className="text-center mb-8">
+          <div className="inline-block text-xs font-bold tracking-widest text-sky-400 bg-sky-400/10 border border-sky-400/20 px-3 py-1 rounded-full mb-4">
+            COMMUNITY HUB
+          </div>
+          <h1 className="text-2xl font-bold text-white">Create your account</h1>
+          <p className="text-slate-400 text-sm mt-2">Join the community today</p>
+        </div>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Operator ID / Username</label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">
+              Display Name
+            </label>
+            <input
+              type="text"
+              name="displayName"
+              value={formData.displayName}
+              onChange={handleChange}
+              required
+              className="w-full bg-[#050b14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
+              placeholder="How others will see you"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">
+              Username
+            </label>
             <input
               type="text"
               name="username"
-              placeholder="quantum_admin"
               value={formData.username}
               onChange={handleChange}
               required
-              style={styles.input}
+              className="w-full bg-[#050b14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
+              placeholder="unique_username"
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Email Endpoint</label>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">
+              Email
+            </label>
             <input
               type="email"
               name="email"
-              placeholder="operator@quantum.io"
               value={formData.email}
               onChange={handleChange}
               required
-              style={styles.input}
+              className="w-full bg-[#050b14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
+              placeholder="you@example.com"
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Access Key (Password)</label>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">
+              Password
+            </label>
             <input
               type="password"
               name="password"
-              placeholder="••••••••••••"
               value={formData.password}
               onChange={handleChange}
               required
-              style={styles.input}
+              className="w-full bg-[#050b14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
+              placeholder="Minimum 6 characters"
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Confirm Access Key</label>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">
+              Confirm Password
+            </label>
             <input
               type="password"
               name="confirmPassword"
-              placeholder="••••••••••••"
               value={formData.confirmPassword}
               onChange={handleChange}
               required
-              style={styles.input}
+              className="w-full bg-[#050b14] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
+              placeholder="Repeat password"
             />
-            {!passwordsMatch && formData.confirmPassword.length > 0 && (
-              <span style={styles.helperText}>Passwords do not match.</span>
-            )}
           </div>
 
-          <button type="submit" style={styles.button}>
-            Initialize Registration
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-sky-500 hover:bg-sky-400 disabled:bg-sky-800 text-slate-950 font-bold py-3.5 rounded-xl transition mt-2"
+          >
+            {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
 
-        <p style={styles.footerText}>
-          Already verified? <Link to="/dashboard" style={styles.link}>Log in to Terminal</Link>
+        <p className="text-center text-sm text-slate-400 mt-6">
+          Already have an account?{' '}
+          <Link to="/login" className="text-sky-400 font-semibold hover:underline">
+            Sign in
+          </Link>
         </p>
       </div>
     </div>
   );
 };
 
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'radial-gradient(circle at top, #111827, #030712)',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
-    color: '#f9fafb',
-    padding: '20px',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '440px',
-    backgroundColor: '#0f172a',
-    borderRadius: '16px',
-    border: '1px solid #1e293b',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
-    padding: '32px',
-    boxSizing: 'border-box',
-  },
-  badge: {
-    display: 'inline-block',
-    fontSize: '11px',
-    fontWeight: '700',
-    letterSpacing: '1.5px',
-    color: '#38bdf8',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-    border: '1px solid rgba(56, 189, 248, 0.2)',
-    padding: '6px 12px',
-    borderRadius: '20px',
-    marginBottom: '16px',
-  },
-  title: {
-    margin: '0 0 8px 0',
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#f8fafc',
-  },
-  subtitle: {
-    margin: '0 0 24px 0',
-    fontSize: '14px',
-    color: '#94a3b8',
-    lineHeight: '1.5',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '18px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  label: {
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#cbd5e1',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  input: {
-    backgroundColor: '#1e293b',
-    border: '1px solid #334155',
-    borderRadius: '8px',
-    padding: '12px 14px',
-    fontSize: '14px',
-    color: '#ffffff',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  button: {
-    marginTop: '8px',
-    backgroundColor: '#0284c7',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
-  },
-  footerText: {
-    marginTop: '24px',
-    textAlign: 'center',
-    fontSize: '14px',
-    color: '#64748b',
-  },
-  link: {
-    color: '#38bdf8',
-    textDecoration: 'none',
-    fontWeight: '600',
-  },
-  helperText: {
-    fontSize: '12px',
-    color: '#f87171',
-    marginTop: '4px',
-  },
-};
-
 export default Register;
-
-    
