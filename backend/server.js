@@ -43,7 +43,7 @@ mongoose
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/feedback', feedbackRoutes);
-
+app.use('/api/profile', profileRoutes);
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🟢 User connected:', socket.id);
