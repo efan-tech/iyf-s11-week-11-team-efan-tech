@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import API from './api';
 import Dashboard from './pages/Dashboard';
 import Feedback from './pages/Feedback';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import Auth from './pages/Auth';   // ← using the new combined page
 
 // Renders Dashboard OR the Feedback modal; owns the events list & current user.
 function Shell() {
@@ -30,7 +30,9 @@ function Shell() {
     }
   };
 
-  useEffect(() => { loadEvents(); }, []);
+  useEffect(() => {
+    loadEvents();
+  }, []);
 
   const handleAddEvent = async (newEventData) => {
     try {
@@ -39,8 +41,8 @@ function Shell() {
         author: {
           name: currentUser.username || 'Anonymous',
           handle: currentUser.handle || '',
-          avatar: currentUser.avatar || ''
-        }
+          avatar: currentUser.avatar || '',
+        },
       });
       setEvents([res.data, ...events]);
     } catch (err) {
@@ -53,9 +55,11 @@ function Shell() {
     try {
       const res = await API.post(`/events/${eventId}/rsvp`, {
         name: currentUser.username || 'Anonymous',
-        status: status
+        status: status,
       });
-      setEvents(prev => prev.map(ev => (ev._id === eventId ? res.data : ev)));
+      setEvents((prev) =>
+        prev.map((ev) => (ev._id === eventId ? res.data : ev))
+      );
     } catch (err) {
       console.error('RSVP error:', err);
       alert('Failed to RSVP. Please try again.');
@@ -106,9 +110,20 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={<RequireToken><Shell /></RequireToken>} />
+
+      {/* Both /login and /register now use the combined Auth page */}
+      <Route path="/login" element={<Auth />} />
+      <Route path="/register" element={<Auth />} />
+
+      <Route
+        path="/dashboard"
+        element={
+          <RequireToken>
+            <Shell />
+          </RequireToken>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
