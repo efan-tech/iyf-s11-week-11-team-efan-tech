@@ -219,56 +219,21 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-[#050b14] text-gray-100">
       {/* ========== HEADER ========== */}
-      <header className="sticky top-0 z-50 bg-[#050b14]/90 backdrop-blur border-b border-slate-800">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse"></span>
-            <span className="font-bold tracking-wide text-sm uppercase">
-              Community Hub
-            </span>
-          </div>
+<header className="sticky top-0 z-30 bg-[#050b14]/90 backdrop-blur border-b border-slate-800 md:border-none">
+  <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+    <h1 className="font-bold text-white text-lg hidden md:block">
+      Community Events
+    </h1>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowCreate(!showCreate)}
-              className="flex items-center gap-1.5 text-xs bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold px-3 py-2 rounded-lg transition"
-            >
-              <Plus size={16} />
-              New Event
-            </button>
-
-            <button
-              onClick={() => navigate('/feedback')}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg transition"
-            >
-              Feedback
-            </button>
-
-            <button
-              onClick={() => navigate(`/profile/${user?.username}`)}
-              className="flex items-center"
-              title="My Profile"
-            >
-              <img
-                src={user?.avatar}
-                alt={user?.displayName}
-                className="w-8 h-8 rounded-full object-cover border border-sky-500/50"
-              />
-            </button>
-
-            <button
-              onClick={() => {
-                logout();
-                navigate('/login');
-              }}
-              className="text-slate-400 hover:text-white transition"
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
-      </header>
+    <button
+      onClick={() => setShowCreate(!showCreate)}
+      className="flex items-center gap-1.5 text-xs bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold px-3 py-2 rounded-lg transition ml-auto"
+    >
+      <Plus size={16} />
+      New Event
+    </button>
+  </div>
+</header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* ========== CREATE EVENT FORM ========== */}
