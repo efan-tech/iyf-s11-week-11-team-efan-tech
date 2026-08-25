@@ -75,7 +75,7 @@ const Feedback = () => {
         <section className="bg-[#0b1329] border border-slate-800 rounded-2xl p-6">
           <h2 className="font-bold text-lg text-white mb-1">Share your thoughts</h2>
           <p className="text-sm text-slate-400 mb-5">
-            Help us improve the Community Hub
+            Help us improve the NIKO ON!!!😎
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
