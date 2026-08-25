@@ -5,33 +5,33 @@ const Event = require('../models/Event');
 const ProfileComment = require('../models/ProfileComment');
 const { protect } = require('../middleware/auth');
 
-// ============================================
-// GET user profile by ID (or username)
-// ============================================
+// GET /api/profile/:identifier  (id or username)
 router.get('/:identifier', async (req, res) => {
   try {
     const { identifier } = req.params;
 
-    // Allow searching by ID or username
     const query = identifier.match(/^[0-9a-fA-F]{24}$/)
       ? { _id: identifier }
-      : { username: identifier };
+      : { username: identifier.toLowerCase() };
 
     const user = await User.findOne(query).select('-password');
-
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Get all posts created by this user
-    const posts = await Event.find({ author: user._id })
-      .populate('author', 'username displayName avatar')
-      .populate('likes', 'username displayName avatar')
-      .sort({ createdAt: -1 });
+    // Posts created by this user
+    const posts = await Event.find({ 'author.userId': user._id }).sort({
+      createdAt: -1,
+    });
 
-    // Calculate total likes across all posts
-    const totalLikes = posts.reduce((sum, post) => sum + post.likes.length, 0);
-    const totalShares = posts.reduce((sum, post) => sum + (post.shares || 0), 0);
+    const totalLikes = posts.reduce(
+      (sum, post) => sum + (post.likes?.length || 0),
+      0
+    );
+    const totalShares = posts.reduce(
+      (sum, post) => sum + (post.shares || 0),
+      0
+    );
 
     res.json({
       user,
@@ -39,7 +39,7 @@ router.get('/:identifier', async (req, res) => {
         totalPosts: posts.length,
         totalLikes,
         totalShares,
-        totalRsvps: user.totalRsvps,
+        totalRsvps: user.totalRsvps || 0,
       },
       posts,
     });
@@ -49,9 +49,7 @@ router.get('/:identifier', async (req, res) => {
   }
 });
 
-// ============================================
-// UPDATE own profile (protected)
-// ============================================
+// PUT /api/profile/me  (protected)
 router.put('/me', protect, async (req, res) => {
   try {
     const { displayName, bio, avatar } = req.body;
@@ -59,9 +57,9 @@ router.put('/me', protect, async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       {
-        ...(displayName && { displayName }),
+        ...(displayName !== undefined && { displayName }),
         ...(bio !== undefined && { bio }),
-        ...(avatar && { avatar }),
+        ...(avatar !== undefined && { avatar }),
       },
       { new: true, runValidators: true }
     ).select('-password');
@@ -73,12 +71,12 @@ router.put('/me', protect, async (req, res) => {
   }
 });
 
-// ============================================
-// GET guestbook comments for a user
-// ============================================
+// GET /api/profile/:userId/guestbook
 router.get('/:userId/guestbook', async (req, res) => {
   try {
-    const comments = await ProfileComment.find({ profileOwner: req.params.userId })
+    const comments = await ProfileComment.find({
+      profileOwner: req.params.userId,
+    })
       .populate('author', 'username displayName avatar')
       .sort({ createdAt: -1 });
 
@@ -89,18 +87,15 @@ router.get('/:userId/guestbook', async (req, res) => {
   }
 });
 
-// ============================================
-// POST a comment on someone's profile (guestbook)
-// ============================================
+// POST /api/profile/:userId/guestbook  (protected)
 router.post('/:userId/guestbook', protect, async (req, res) => {
   try {
     const { text } = req.body;
 
-    if (!text || text.trim().length === 0) {
+    if (!text || !text.trim()) {
       return res.status(400).json({ message: 'Comment text is required' });
     }
 
-    // Prevent commenting on non-existent users
     const profileOwner = await User.findById(req.params.userId);
     if (!profileOwner) {
       return res.status(404).json({ message: 'User not found' });
@@ -112,15 +107,10 @@ router.post('/:userId/guestbook', protect, async (req, res) => {
       text: text.trim(),
     });
 
-    const populated = await ProfileComment.findById(comment._id)
-      .populate('author', 'username displayName avatar');
-
-    // Real-time notification (optional but nice)
-    const io = req.app.get('io');
-    io.emit('profileComment', {
-      profileOwnerId: req.params.userId,
-      comment: populated,
-    });
+    const populated = await ProfileComment.findById(comment._id).populate(
+      'author',
+      'username displayName avatar'
+    );
 
     res.status(201).json(populated);
   } catch (err) {
