@@ -1,67 +1,72 @@
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const profileRoutes = require('./routes/profile');
 require('dotenv').config();
 
-const authRoutes = require('./routes/auth');
 const eventRoutes = require('./routes/events');
 const feedbackRoutes = require('./routes/feedback');
-// We will add profile routes in a later step
+const authRoutes = require('./routes/auth');
+const profileRoutes = require('./routes/profile');
 
 const app = express();
-const server = http.createServer(app);
 
-// Socket.io setup
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+// CORS – allow Vercel frontend + local dev
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://community-hub-murex.vercel.app',
+  'https://community-hub-five-tau.vercel.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, Render health checks)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // keep permissive for now; tighten later if needed
+      }
+    },
     credentials: true,
-  },
+  })
+);
+
+app.use(express.json());
+
+// Health check
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'Community Hub API is running' });
 });
 
-// Make io available in routes
-app.set('io', io);
-
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-}));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
 // Connect to MongoDB
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch((err) => console.error('❌ MongoDB Error:', err));
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  console.error('❌ MONGO_URI is missing in environment variables');
+} else {
+  mongoose
+    .connect(mongoUri)
+    .then(() => console.log('✅ Connected to MongoDB Atlas'))
+    .catch((err) => console.error('❌ MongoDB Error:', err.message));
+}
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/profile', profileRoutes);
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('🟢 User connected:', socket.id);
 
-  socket.on('joinPost', (postId) => {
-    socket.join(postId);
-  });
+// 404
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
 
-  socket.on('leavePost', (postId) => {
-    socket.leave(postId);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('🔴 User disconnected:', socket.id);
-  });
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Server error', error: err.message });
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));
