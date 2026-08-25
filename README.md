@@ -5,7 +5,7 @@
 - **GitHub:** [@efan-tech](https://github.com/efan-tech)
 - **Date:** August 21, 2026
 
-## Project Description
+## Project Description .
 Community Hub is a full-stack web application designed to handle campus community updates, dynamic post feeds, and user feedback submissions in a unified dashboard.
 
 ## Technologies Used
