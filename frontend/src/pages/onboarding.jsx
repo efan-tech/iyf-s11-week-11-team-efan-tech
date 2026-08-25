@@ -76,7 +76,7 @@ const Onboarding = () => {
       {/* Background song – put your .mp3 in public/audio/ */}
       <audio
         ref={audioRef}
-        src="/audio/onboarding-song.mp3"
+        src="/audio/niko-on-theme.mp3"
         loop
         preload="auto"
       />
