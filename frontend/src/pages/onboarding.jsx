@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const SLIDES = [
   {
-    title: 'Welcome to Campus Hub',
+    title: 'Welcome to NIKO ON!!!😎',
     text: 'Discover events, hackathons, art jams and connect with students around you.',
     image: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80',
   },
