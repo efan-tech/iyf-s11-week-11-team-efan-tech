@@ -2,10 +2,6 @@ const mongoose = require('mongoose');
 
 const feedbackSchema = new mongoose.Schema(
   {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
     name: {
       type: String,
       required: true,
@@ -17,16 +13,21 @@ const feedbackSchema = new mongoose.Schema(
       enum: ['Feedback', 'Idea', 'Suggestion', 'Bug'],
       default: 'Feedback',
     },
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     rating: {
       type: Number,
       min: 1,
       max: 5,
       default: 5,
     },
-    message: {
-      type: String,
-      required: true,
-      trim: true,
+    // Optional link to logged-in user
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   { timestamps: true }
