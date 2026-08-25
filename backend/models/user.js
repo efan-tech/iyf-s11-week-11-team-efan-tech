@@ -1,42 +1,43 @@
-
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
     username: {
       type: String,
-      required: [true, 'Username is required'],
+      required: true,
       unique: true,
       trim: true,
+      lowercase: true,
       minlength: 3,
+      maxlength: 30,
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: true,
       unique: true,
-      lowercase: true,
       trim: true,
+      lowercase: true,
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: true,
       minlength: 6,
-      select: false, // never return password by default
     },
     displayName: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
     },
     bio: {
       type: String,
-      default: '',
+      trim: true,
       maxlength: 300,
+      default: '',
     },
     avatar: {
       type: String,
-      default: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
+      default:
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
     },
     totalRsvps: {
       type: Number,
@@ -46,16 +47,12 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+// Always give a displayName if empty
+userSchema.pre('save', function (next) {
+  if (!this.displayName) {
+    this.displayName = this.username;
+  }
   next();
 });
-
-// Compare password method
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
 
 module.exports = mongoose.model('User', userSchema);
