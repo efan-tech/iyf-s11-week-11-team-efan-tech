@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Feedback from './pages/Feedback';
+import Onboarding from './pages/onboarding';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -26,11 +27,19 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
+  // Check if user has already seen onboarding
+  const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding') === 'true';
+
   return (
     <Routes>
+      {/* Onboarding - only for first-time visitors */}
+      <Route path="/onboarding" element={<Onboarding />} />
+
+      {/* Auth pages */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
+      {/* Protected pages */}
       <Route
         path="/dashboard"
         element={
@@ -58,8 +67,20 @@ function App() {
         }
       />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Root redirect logic */}
+      <Route
+        path="/"
+        element={
+          hasSeenOnboarding ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/onboarding" replace />
+          )
+        }
+      />
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
