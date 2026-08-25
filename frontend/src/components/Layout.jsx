@@ -42,7 +42,7 @@ const Layout = ({ children }) => {
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
           {sidebarOpen && (
             <span className="font-bold text-sky-400 tracking-wide text-sm">
-              COMMUNITY HUB
+              NIKO ON!!!😎
             </span>
           )}
           <button
