@@ -222,7 +222,7 @@ const Dashboard = () => {
 <header className="sticky top-0 z-30 bg-[#050b14]/90 backdrop-blur border-b border-slate-800 md:border-none">
   <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
     <h1 className="font-bold text-white text-lg hidden md:block">
-      Community Events
+      Niko on Events
     </h1>
 
     <button
@@ -327,7 +327,7 @@ const Dashboard = () => {
 
         {/* ========== EVENTS FEED ========== */}
         <section className="space-y-5">
-          <h2 className="font-bold text-white text-lg">Community Events</h2>
+          <h2 className="font-bold text-white text-lg">Niko on Events</h2>
 
           {events.length === 0 && (
             <div className="text-center py-16">
