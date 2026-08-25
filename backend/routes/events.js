@@ -2,280 +2,197 @@ const express = require('express');
 const router = express.Router();
 const Event = require('../models/Event');
 const User = require('../models/user');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 
-// ============================================
-// GET all events (newest first)
-// ============================================
+// GET /api/events – public list
 router.get('/', async (req, res) => {
   try {
-    const events = await Event.find()
-      .populate('author', 'username displayName avatar')
-      .populate('likes', 'username displayName avatar')
-      .populate('rsvps.user', 'username displayName avatar')
-      .populate('comments.user', 'username displayName avatar')
-      .sort({ createdAt: -1 });
-
+    const events = await Event.find().sort({ createdAt: -1 });
     res.json(events);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to fetch events' });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ============================================
-// GET single event by ID
-// ============================================
-router.get('/:id', async (req, res) => {
+// POST /api/events – create (protected preferred; falls back to body.author)
+router.post('/', optionalAuth, async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id)
-      .populate('author', 'username displayName avatar')
-      .populate('likes', 'username displayName avatar')
-      .populate('rsvps.user', 'username displayName avatar')
-      .populate('comments.user', 'username displayName avatar');
+    const { title, description, category, location, date, image, author } =
+      req.body;
 
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
+    if (!title || !description) {
+      return res
+        .status(400)
+        .json({ error: 'Title and description are required' });
+    }
+
+    let authorData = {
+      name: 'Community',
+      handle: '',
+      avatar: '',
+    };
+
+    if (req.user) {
+      authorData = {
+        userId: req.user._id,
+        name: req.user.displayName || req.user.username,
+        handle: `@${req.user.username}`,
+        avatar: req.user.avatar || '',
+      };
+    } else if (author) {
+      authorData = {
+        name: author.name || 'Anonymous',
+        handle: author.handle || '',
+        avatar: author.avatar || '',
+      };
+    }
+
+    const newEvent = new Event({
+      title,
+      description,
+      category: category || 'General',
+      location: location || 'Campus',
+      date: date || 'TBA',
+      image:
+        image ||
+        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
+      author: authorData,
+    });
+
+    const saved = await newEvent.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/events/:id/rsvp
+// Body: { status }  (preferred with auth)
+// or    { name, status } (legacy Dashboard)
+router.post('/:id/rsvp', optionalAuth, async (req, res) => {
+  try {
+    const { status, name } = req.body;
+
+    if (!['going', 'maybe', 'not-going'].includes(status)) {
+      return res
+        .status(400)
+        .json({ error: 'Valid status is required (going | maybe | not-going)' });
+    }
+
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    const rsvpName =
+      (req.user && (req.user.displayName || req.user.username)) ||
+      name ||
+      'Anonymous';
+
+    const userId = req.user ? req.user._id : null;
+
+    // Find existing RSVP by userId or by name
+    let existingIndex = -1;
+    if (userId) {
+      existingIndex = event.rsvps.findIndex(
+        (r) => r.userId && r.userId.toString() === userId.toString()
+      );
+    }
+    if (existingIndex === -1) {
+      existingIndex = event.rsvps.findIndex((r) => r.name === rsvpName);
+    }
+
+    const previousStatus =
+      existingIndex !== -1 ? event.rsvps[existingIndex].status : null;
+
+    if (existingIndex !== -1) {
+      event.rsvps[existingIndex].status = status;
+      event.rsvps[existingIndex].respondedAt = new Date();
+      if (userId) event.rsvps[existingIndex].userId = userId;
+      event.rsvps[existingIndex].name = rsvpName;
+    } else {
+      event.rsvps.push({
+        userId: userId || undefined,
+        name: rsvpName,
+        status,
+      });
+    }
+
+    event.joinedCount = event.rsvps.filter((r) => r.status === 'going').length;
+    await event.save();
+
+    // Update user totalRsvps when they first say "going"
+    if (userId && status === 'going' && previousStatus !== 'going') {
+      await User.findByIdAndUpdate(userId, { $inc: { totalRsvps: 1 } });
     }
 
     res.json(event);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to fetch event' });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ============================================
-// CREATE new event (protected)
-// ============================================
-router.post('/', protect, async (req, res) => {
-  try {
-    const { title, description, category, location, date, image } = req.body;
-
-    if (!title || !description || !category || !date) {
-      return res.status(400).json({ message: 'Title, description, category and date are required' });
-    }
-
-    const newEvent = await Event.create({
-      title,
-      description,
-      category,
-      location: location || 'Campus',
-      date,
-      image: image || '',
-      author: req.user._id,
-    });
-
-    // Populate author before sending
-    const populatedEvent = await Event.findById(newEvent._id)
-      .populate('author', 'username displayName avatar');
-
-    // Real-time: broadcast new post to everyone
-    const io = req.app.get('io');
-    io.emit('newPost', populatedEvent);
-
-    res.status(201).json(populatedEvent);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to create event' });
-  }
-});
-
-// ============================================
-// RSVP to an event (protected)
-// ============================================
-router.post('/:id/rsvp', protect, async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    if (!['going', 'maybe', 'not-going'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status. Use going, maybe or not-going' });
-    }
-
-    const event = await Event.findById(req.params.id);
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Remove previous RSVP by this user (if any)
-    event.rsvps = event.rsvps.filter(
-      (r) => r.user.toString() !== req.user._id.toString()
-    );
-
-    // Add new RSVP
-    event.rsvps.push({
-      user: req.user._id,
-      status,
-    });
-
-    // Update joinedCount
-    event.joinedCount = event.rsvps.filter((r) => r.status === 'going').length;
-
-    await event.save();
-
-    // Update user's totalRsvps if they said "going"
-    if (status === 'going') {
-      await User.findByIdAndUpdate(req.user._id, { $inc: { totalRsvps: 1 } });
-    }
-
-    const populatedEvent = await Event.findById(event._id)
-      .populate('author', 'username displayName avatar')
-      .populate('likes', 'username displayName avatar')
-      .populate('rsvps.user', 'username displayName avatar')
-      .populate('comments.user', 'username displayName avatar');
-
-    // Real-time update
-    const io = req.app.get('io');
-    io.emit('rsvpUpdated', populatedEvent);
-    io.to(req.params.id).emit('rsvpUpdated', populatedEvent);
-
-    res.json(populatedEvent);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to RSVP' });
-  }
-});
-
-// ============================================
-// LIKE / UNLIKE an event (protected)
-// ============================================
+// POST /api/events/:id/like  (protected)
 router.post('/:id/like', protect, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
+    if (!event) return res.status(404).json({ error: 'Event not found' });
 
+    const userId = req.user._id;
     const alreadyLiked = event.likes.some(
-      (id) => id.toString() === req.user._id.toString()
+      (id) => id.toString() === userId.toString()
     );
 
     if (alreadyLiked) {
-      // Unlike
       event.likes = event.likes.filter(
-        (id) => id.toString() !== req.user._id.toString()
+        (id) => id.toString() !== userId.toString()
       );
     } else {
-      // Like
-      event.likes.push(req.user._id);
+      event.likes.push(userId);
     }
 
     await event.save();
-
-    const populatedEvent = await Event.findById(event._id)
-      .populate('author', 'username displayName avatar')
-      .populate('likes', 'username displayName avatar')
-      .populate('rsvps.user', 'username displayName avatar')
-      .populate('comments.user', 'username displayName avatar');
-
-    // Real-time
-    const io = req.app.get('io');
-    io.emit('postLiked', populatedEvent);
-    io.to(req.params.id).emit('postLiked', populatedEvent);
-
-    res.json(populatedEvent);
+    res.json(event);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to like/unlike' });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ============================================
-// ADD COMMENT (protected)
-// ============================================
+// POST /api/events/:id/comments  (protected)
 router.post('/:id/comments', protect, async (req, res) => {
   try {
     const { text, parentComment } = req.body;
-
-    if (!text || text.trim().length === 0) {
-      return res.status(400).json({ message: 'Comment text is required' });
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Comment text is required' });
     }
 
     const event = await Event.findById(req.params.id);
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
+    if (!event) return res.status(404).json({ error: 'Event not found' });
 
     event.comments.push({
       user: req.user._id,
+      userName: req.user.displayName || req.user.username,
       text: text.trim(),
       parentComment: parentComment || null,
     });
 
     await event.save();
-
-    const populatedEvent = await Event.findById(event._id)
-      .populate('author', 'username displayName avatar')
-      .populate('likes', 'username displayName avatar')
-      .populate('rsvps.user', 'username displayName avatar')
-      .populate('comments.user', 'username displayName avatar');
-
-    // Real-time
-    const io = req.app.get('io');
-    io.emit('newComment', populatedEvent);
-    io.to(req.params.id).emit('newComment', populatedEvent);
-
-    res.status(201).json(populatedEvent);
+    res.status(201).json(event);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to add comment' });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ============================================
-// SHARE (increment share count)
-// ============================================
-router.post('/:id/share', protect, async (req, res) => {
+// POST /api/events/:id/share  (public / optional auth)
+router.post('/:id/share', async (req, res) => {
   try {
     const event = await Event.findByIdAndUpdate(
       req.params.id,
       { $inc: { shares: 1 } },
       { new: true }
-    )
-      .populate('author', 'username displayName avatar')
-      .populate('likes', 'username displayName avatar')
-      .populate('rsvps.user', 'username displayName avatar')
-      .populate('comments.user', 'username displayName avatar');
-
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Real-time
-    const io = req.app.get('io');
-    io.emit('postShared', event);
-
+    );
+    if (!event) return res.status(404).json({ error: 'Event not found' });
     res.json(event);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to share' });
-  }
-});
-
-// ============================================
-// DELETE event (only author)
-// ============================================
-router.delete('/:id', protect, async (req, res) => {
-  try {
-    const event = await Event.findById(req.params.id);
-
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    if (event.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to delete this event' });
-    }
-
-    await event.deleteOne();
-
-    const io = req.app.get('io');
-    io.emit('postDeleted', req.params.id);
-
-    res.json({ message: 'Event deleted successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to delete event' });
+    res.status(500).json({ error: err.message });
   }
 });
 
