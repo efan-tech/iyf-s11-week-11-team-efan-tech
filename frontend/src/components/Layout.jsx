@@ -118,7 +118,7 @@ const Layout = ({ children }) => {
         {/* Mobile Top Bar */}
         <header className="md:hidden sticky top-0 z-40 bg-[#050b14]/95 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center justify-between">
           <span className="font-bold text-sky-400 text-sm tracking-wide">
-            COMMUNITY HUB
+            NIKO ON!!!😎
           </span>
           <img
             src={user?.avatar}
