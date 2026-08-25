@@ -37,7 +37,7 @@ const Login = () => {
       <div className="w-full max-w-md bg-[#0f172a] border border-slate-800 rounded-2xl p-8 shadow-2xl">
         <div className="text-center mb-8">
           <div className="inline-block text-xs font-bold tracking-widest text-sky-400 bg-sky-400/10 border border-sky-400/20 px-3 py-1 rounded-full mb-4">
-            COMMUNITY HUB
+            NIKO ON!!!😎
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome back</h1>
           <p className="text-slate-400 text-sm mt-2">Sign in to continue to the hub</p>
