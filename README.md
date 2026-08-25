@@ -10,7 +10,7 @@ Community Hub is a full-stack web application designed to handle campus communit
 
 ## Technologies Used
 - HTML5
-- CSS3 / Tailwind CSS
+- CSS/ Tailwind CSS
 - JavaScript
 - React (Vite)
 - Node.js & Express.js
