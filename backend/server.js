@@ -7,6 +7,8 @@ const eventRoutes = require('./routes/events');
 const feedbackRoutes = require('./routes/feedback');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
+const healthRoutes = require('./routes/health');
+
 
 const app = express();
 
@@ -56,6 +58,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/health', healthRoutes);
 
 // 404
 app.use((req, res) => {
